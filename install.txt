@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Vérifier si un argument a été fourni
+if [ -z "$1" ]; then
+    echo "Aucun argument fourni. Aucun script ne sera ajouté à 1hcron.sh."
+else
+    # Récupérer l'argument
+    ARGUMENT="$1"
+
+    # Déterminer le script Python en fonction de l'argument
+    if [ "$ARGUMENT" == "trix_multi_bybit" ]; then
+        PYTHON_SCRIPT="python3 Live-Tools-V2/strategies/trix/trix_multi_bybit.py"
+    else
+        echo "Argument non reconnu. Aucun ajout ne sera effectué."
+        exit 1
+    fi
+
+    # Si un script Python a été défini, procéder à l'ajout
+    if [ -n "$PYTHON_SCRIPT" ]; then
+        # Vérifier si la ligne existe déjà dans 1hcron.sh
+        if grep -Fxq "$PYTHON_SCRIPT" Live-Tools-V2/1hcron.sh; then
+            echo "Le script $PYTHON_SCRIPT existe déjà dans 1hcron.sh"
+        else
+            # Ajouter la ligne au fichier 1hcron.sh
+            echo "$PYTHON_SCRIPT" >> Live-Tools-V2/1hcron.sh
+            echo "Le script $PYTHON_SCRIPT a été ajouté à 1hcron.sh"
+        fi
+    fi
+fi
+
+echo "Mise à jour du serveur..."
+sudo apt-get update
+
+echo "Installation de pip..."
+sudo apt install python3-pip -y
+
+# Créer le fichier de log s'il n'existe pas
+touch cronlog.log
+
+echo "Installation des packages nécessaires..."
+cd Live-Tools-V2
+sudo apt-get install python3-venv -y
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd ..
+
+# Ajouter la tâche cron si elle n'existe pas déjà
+crontab -l | grep -q 'bash ./Live-Tools-V2/1hcron.sh'
+if [ $? -ne 0 ]; then
+    (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash ./Live-Tools-V2/1hcron.sh >> cronlog.log") | crontab -
+    echo "Tâche cron ajoutée avec succès."
+else
+    echo "La tâche cron existe déjà."
+fi
+
+echo "Installation terminée. Modifiez secret.json avec vos clés API Bybit."
